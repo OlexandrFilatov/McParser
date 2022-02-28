@@ -2,7 +2,8 @@ import psycopg2
 import requests
 from bs4 import BeautifulSoup
 import re
-import settings
+from settings import REMOTE_POSTGRES_CREDS
+from mysql_manager import MySqLManager
 
 
 class McParser:
@@ -51,31 +52,31 @@ class McParser:
 
         return item_nutrition_list
 
+    def run(self):
+        connection, cursor = MySqLManager().mysql_get_local_db_credentials()
+        if connection:
+            # item_nutrition_list = self.get_all_products_json_data()
+            try:
+                # MySqLManager().mysql_create_db(cursor)
+                # MySqLManager().mysql_create_product_table(cursor)
+                # MySqLManager().mysql_write_to_db(item_nutrition_list, connection, cursor)
+                data = MySqLManager().get_values(cursor)
+                for i in data:
+                    print(i)
+            finally:
+                connection.close()
 
-class DbManager(McParser):
+class DbManager(MySqLManager):
 
-    def get_remote_db_credentials(self):
+    def get_db_credentials(self):
         for _ in range(10):
             try:
-                connection = psycopg2.connect(**settings.REMOTE_POSTGRES_CREDS)
+                connection = psycopg2.connect(**REMOTE_POSTGRES_CREDS)
                 if connection:
                     cursor = connection.cursor()
                     return connection, cursor
             except:
                 continue
-
-    # def connect_to_db(self, func):
-    #     def wrapper(*args):
-    #         try:
-    #             connection, cursor = self.get_db_credentials()
-    #             return func(cursor=cursor, connection=connection, *args)
-    #         except Exception as e:
-    #             print(f"Error during working in func - {func.__name__}")
-    #             print(e)
-    #             connection.rollback()
-    #         finally:
-    #             connection.close()
-    #     return wrapper
 
     def create_product_table(self, cursor, connection):
         cursor.execute("""CREATE TABLE IF NOT EXISTS mc_data (
@@ -103,7 +104,7 @@ class DbManager(McParser):
             try:
                 args_str = b','.join(cursor.mogrify(signs, x) for x in to_db_list)
                 args_str = args_str.decode()
-                insert_statement = """INSERT INTO %s VALUES """ % table_name
+                insert_statement = """INSERT INTO %s VALUES""" % table_name
                 conflict_statement = """ ON CONFLICT DO NOTHING"""
                 if on_conflict:
                     conflict_statement = """ ON CONFLICT ("{0}") DO UPDATE SET {1};""".format(id_tag, update_string)
@@ -117,69 +118,9 @@ class DbManager(McParser):
         finally:
             connection.close()
 
-    def get_local_db_credentials(self):
-        for _ in range(10):
-            try:
-                connection = psycopg2.connect(**settings.LOCAL_POSTRGES_CREDS)
-                if connection:
-                    cursor = connection.cursor()
-                    cursor.execute("""CREATE database products""")
-                    connection.commit()
-
-                    cursor.execute("""CREATE TABLE IF NOT EXISTS mc_data (
-                                        item_name CHAR(30),
-                                        item_calories INT,
-                                        item_total_fat INT, 
-                                        item_total_carbs INT, 
-                                        item_total_protein INT
-                                        """)
-                    connection.commit()
-
-                    return connection, cursor
-            except Exception as e:
-                print(e)
-                continue
-
-    def run(self):
-        connection, cursor = self.get_local_db_credentials()
-        print(connection, cursor)
-        connection.close()
-        # if connection:
-        #     try:
-        #         self.get_local_db_credentials()
-        #         item_nutrition_list = self.get_all_products_json_data()
-        #         self.write_to_db(item_nutrition_list, 'mc_data')
-        #     finally:
-        #         connection.close()
-
 
 if __name__ == '__main__':
-    parser = DbManager()
-    parser.run()
-
-
-
-# class Worker(McParser, DbManager):
-#     def __init___(self):
-#         connection, cursor = self.get_local_db_credentials()
-#         if connection:
-#             try:
-#                 self.create_product_table(cursor, connection)
-#                 item_nutrition_list = self.get_all_products_json_data()
-#                 self.write_to_db(item_nutrition_list, 'mc_data')
-#             finally:
-#                 connection.close()
-#
-#
-# if __name__ == '__main__':
-#     connection, cursor = McParser.get_local_db_credentials()
-#     if connection:
-#         try:
-#             self.create_product_table(cursor, connection)
-#             item_nutrition_list = self.get_all_products_json_data()
-#             self.write_to_db(item_nutrition_list, 'mc_data')
-#         finally:
-#             connection.close()
+    McParser().run()
 
 
 
