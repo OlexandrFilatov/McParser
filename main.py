@@ -6,8 +6,58 @@ from settings import REMOTE_POSTGRES_CREDS
 from mysql_manager import MySqLManager
 
 
+class DbManager(MySqLManager):
+    def get_db_credentials(self):
+        for _ in range(10):
+            try:
+                connection = psycopg2.connect(**REMOTE_POSTGRES_CREDS)
+                if connection:
+                    cursor = connection.cursor()
+                    return connection, cursor
+            except:
+                continue
 
-class McParser:
+    def create_product_table(self, cursor, connection):
+        cursor.execute("""CREATE TABLE IF NOT EXISTS mc_data (
+                    item_name VARCHAR(255),
+                    item_calories FLOAT,
+                    item_total_fat FLOAT, 
+                    item_total_carbs FLOAT, 
+                    item_total_protein FLOAT)""")
+        connection.commit()
+
+    def write_to_db(self, to_db_list, table_name, connection=None, cursor=None, id_tag=None, header=[], on_conflict=False):
+        try:
+            if on_conflict:
+                update_string = ','.join(["{0} = excluded.{0}".format(e) for e in (header)])
+                """
+               :param to_db_list: list of lists
+               :param table_name: str name
+               :param id_tag: primary key
+               :param update_string: list of columns
+               :param on_conflict: False by default
+               :return: None
+               """
+            signs = '(' + ('%s,' * len(to_db_list[0]))[:-1] + ')'
+            try:
+                args_str = b','.join(cursor.mogrify(signs, x) for x in to_db_list)
+                args_str = args_str.decode()
+                insert_statement = """INSERT INTO %s VALUES""" % table_name
+                conflict_statement = """ ON CONFLICT DO NOTHING"""
+                if on_conflict:
+                    conflict_statement = """ ON CONFLICT ("{0}") DO UPDATE SET {1};""".format(id_tag, update_string)
+                cursor.execute(insert_statement + args_str + conflict_statement)
+                connection.commit()
+            except Exception as e:
+                print(e)
+                return False
+            return True
+
+        finally:
+            connection.close()
+
+
+class McParser(DbManager):
     mc_url = """https://www.mcdonalds.com/bin/getProductItemList?country=US
         %20%20%20%20%20%20%20%20&language=en&showLiveData=true&item="""
     main_url = 'https://www.mcdonalds.com/us/en-us/full-menu.html'
@@ -54,67 +104,14 @@ class McParser:
         return item_nutrition_list
 
     def run(self):
-        connection, cursor = MySqLManager().mysql_get_local_db_credentials()
+        connection, cursor = DbManager().get_db_credentials()
         if connection:
             item_nutrition_list = self.get_all_products_json_data()
             try:
-                MySqLManager().mysql_create_db(cursor)
-                MySqLManager().mysql_create_product_table(cursor)
-                MySqLManager().mysql_write_to_db(item_nutrition_list, connection, cursor)
+                DbManager().create_product_table(cursor, connection)
+                DbManager().write_to_db(item_nutrition_list, 'mc_data', connection, cursor)
             finally:
                 connection.close()
-
-class DbManager(MySqLManager):
-
-    def get_db_credentials(self):
-        for _ in range(10):
-            try:
-                connection = psycopg2.connect(**REMOTE_POSTGRES_CREDS)
-                if connection:
-                    cursor = connection.cursor()
-                    return connection, cursor
-            except:
-                continue
-
-    def create_product_table(self, cursor, connection):
-        cursor.execute("""CREATE TABLE IF NOT EXISTS mc_data (
-                    item_name CHAR(30),
-                    item_calories INT,
-                    item_total_fat INT, 
-                    item_total_carbs INT, 
-                    item_total_protein INT
-                    """)
-        connection.commit()
-
-    def write_to_db(self, to_db_list, table_name, connection=None, cursor=None, id_tag=None, header=[], on_conflict=False):
-        try:
-            if on_conflict:
-                update_string = ','.join(["{0} = excluded.{0}".format(e) for e in (header)])
-                """
-               :param to_db_list: list of lists
-               :param table_name: str name
-               :param id_tag: primary key
-               :param update_string: list of columns
-               :param on_conflict: False by default
-               :return: None
-               """
-            signs = '(' + ('%s,' * len(to_db_list[0]))[:-1] + ')'
-            try:
-                args_str = b','.join(cursor.mogrify(signs, x) for x in to_db_list)
-                args_str = args_str.decode()
-                insert_statement = """INSERT INTO %s VALUES""" % table_name
-                conflict_statement = """ ON CONFLICT DO NOTHING"""
-                if on_conflict:
-                    conflict_statement = """ ON CONFLICT ("{0}") DO UPDATE SET {1};""".format(id_tag, update_string)
-                cursor.execute(insert_statement + args_str + conflict_statement)
-                connection.commit()
-            except Exception as e:
-                print(e)
-                return False
-            return True
-
-        finally:
-            connection.close()
 
 
 if __name__ == '__main__':
