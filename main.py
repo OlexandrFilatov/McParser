@@ -18,7 +18,7 @@ class DbManager():
 
     def create_product_table(self, cursor, connection):
         cursor.execute("""CREATE TABLE IF NOT EXISTS mc_data (
-                    item_name VARCHAR(255),
+                    item_name VARCHAR(255) PRIMARY KEY,
                     item_calories FLOAT,
                     item_total_fat FLOAT, 
                     item_total_carbs FLOAT, 
