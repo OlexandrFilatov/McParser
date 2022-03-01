@@ -1,6 +1,6 @@
 import mysql.connector
 from settings import LOCAL_MYSQL_CREDS
-
+from mysql.connector.errors import IntegrityError
 
 class MySqLManager:
     def mysql_get_local_db_credentials(self):
@@ -20,7 +20,7 @@ class MySqLManager:
     def mysql_create_product_table(self, mysql_cursor):
         mysql_cursor.execute('USE mc_data')
         mysql_cursor.execute("""CREATE TABLE IF NOT EXISTS product_nutritions (
-                            item_name VARCHAR(255),
+                            item_name VARCHAR(255) PRIMARY KEY,
                             item_calories INT(8),
                             item_total_fat INT(8), 
                             item_total_carbs INT(8), 
@@ -33,9 +33,9 @@ class MySqLManager:
                                         item_total_carbs,
                                         item_total_protein) 
                                 VALUES (%s, %s, %s, %s, %s)"""
-        cursor.executemany(query, to_db_list)
+        try:
+            cursor.executemany(query, to_db_list)
+        except IntegrityError:
+            print('False to add duplicated data')
         connection.commit()
 
-    def get_values(self, cursor):
-        cursor.execute('USE mc_data')
-        return cursor.execute('SELECT * FROM product_nutririons;')

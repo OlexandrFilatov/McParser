@@ -6,6 +6,7 @@ from settings import REMOTE_POSTGRES_CREDS
 from mysql_manager import MySqLManager
 
 
+
 class McParser:
     mc_url = """https://www.mcdonalds.com/bin/getProductItemList?country=US
         %20%20%20%20%20%20%20%20&language=en&showLiveData=true&item="""
@@ -55,14 +56,11 @@ class McParser:
     def run(self):
         connection, cursor = MySqLManager().mysql_get_local_db_credentials()
         if connection:
-            # item_nutrition_list = self.get_all_products_json_data()
+            item_nutrition_list = self.get_all_products_json_data()
             try:
-                # MySqLManager().mysql_create_db(cursor)
-                # MySqLManager().mysql_create_product_table(cursor)
-                # MySqLManager().mysql_write_to_db(item_nutrition_list, connection, cursor)
-                data = MySqLManager().get_values(cursor)
-                for i in data:
-                    print(i)
+                MySqLManager().mysql_create_db(cursor)
+                MySqLManager().mysql_create_product_table(cursor)
+                MySqLManager().mysql_write_to_db(item_nutrition_list, connection, cursor)
             finally:
                 connection.close()
 
