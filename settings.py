@@ -5,9 +5,3 @@ REMOTE_POSTGRES_CREDS = {
     'user': 'admin',
     'password': 'p8ASJQDA)4Pnt&('
 }
-
-LOCAL_MYSQL_CREDS = {
-        'host': '127.0.0.1',
-        'user': 'root',
-        'password': 'root'
-}

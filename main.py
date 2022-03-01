@@ -3,10 +3,9 @@ import requests
 from bs4 import BeautifulSoup
 import re
 from settings import REMOTE_POSTGRES_CREDS
-from mysql_manager import MySqLManager
 
 
-class DbManager(MySqLManager):
+class DbManager():
     def get_db_credentials(self):
         for _ in range(10):
             try:
